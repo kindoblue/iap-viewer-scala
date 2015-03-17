@@ -1,5 +1,6 @@
 import org.specs2.mutable._
 import core._
+import validation._
 
 class HelloWorldSpec extends Specification {
 
@@ -15,6 +16,14 @@ class HelloWorldSpec extends Specification {
       val a = getClass.getResource("/1000000101882225.cer")
       println(a)
       Parser.parsePurchasesFromURL(a).foreach(println)
+
+      TestDataGenerator.initBC
+
+      val keyPair = TestDataGenerator.generateRSAKeys()
+
+      val cert = TestDataGenerator.buildRootCertificate(keyPair,new java.util.Date, "CN=Stefano")
+
+      println(cert)
 
       "Hello world" must startWith("Hello")
 
