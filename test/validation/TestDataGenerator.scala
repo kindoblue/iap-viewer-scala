@@ -3,7 +3,7 @@ package validation
 import java.math.BigInteger
 import java.security._
 import java.security.cert.X509Certificate
-import java.util.Date
+import java.util.{Calendar, Date}
 import javax.security.auth.x500.X500Principal
 
 import org.bouncycastle.asn1.x509.{Extension, BasicConstraints, KeyUsage}
@@ -24,9 +24,9 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
  */
 object TestDataGenerator {
 
-  def initBC {
-    Security.addProvider(new BouncyCastleProvider)
-  }
+
+  // register the Bouncy Castle provider
+  Security.addProvider(new BouncyCastleProvider)
 
   def generateRSAKeys() : KeyPair = {
 
@@ -95,6 +95,15 @@ object TestDataGenerator {
   }
 
 
+  def oneDayAfter(now: Date) = {
+
+    val cal = Calendar.getInstance()
+    cal.setTime(now)
+    cal.add(Calendar.DATE, 1)
+    cal.getTime
+
+  }
+
   def convertX509(holder : X509CertificateHolder) = {
     val converter = new JcaX509CertificateConverter().setProvider("BC")
     converter.getCertificate(holder)
@@ -124,6 +133,62 @@ object TestDataGenerator {
 
   }
 
+  def buildIntermediateCertificate(subjecPublicKey: PublicKey,
+                                   subjectName: String,
+                                   signingPrivateKey: PrivateKey,
+                                   caCertificate: X509Certificate,
+                                   expiration: Date ) : X509Certificate = {
 
+    val basicConstraints = new BasicConstraints(0)
+    val keyUsage = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign)
+
+    val intermediate = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, caCertificate, expiration, basicConstraints, keyUsage)
+
+    convertX509(intermediate)
+
+  }
+
+  def buildEndCertificate(subjecPublicKey: PublicKey,
+                          subjectName: String,
+                          signingPrivateKey: PrivateKey,
+                          caCertificate: X509Certificate,
+                          expiration: Date ) : X509Certificate = {
+
+    val basicConstraints = new BasicConstraints(false)
+    val keyUsage = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment)
+
+    val intermediate = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, caCertificate, expiration, basicConstraints, keyUsage)
+
+    convertX509(intermediate)
+
+  }
+
+
+  /**
+   * 1) generate the key pair for the CA entit
+   * 2) build the root CA certificate
+   * 3) generate the key pair for intermediate entity
+   * 4) build the intermediate certificate
+   * 5) generate the key pair for end entity
+   * 6) build the end certificate
+   * 7) return the three certificate
+   */
+  def generateTestCertificate(rootSubjectName: String,
+                              intermediateSubjectName: String,
+                              endSubjectName: String ) = {
+
+    val now = new Date
+    val tomorrow = oneDayAfter(now)
+    val caKeyPair = generateRSAKeys()
+    val intermediateKeyPair = generateRSAKeys()
+    val endKeyPair = generateRSAKeys()
+
+    val rootCertificate = buildRootCertificate(caKeyPair,tomorrow,rootSubjectName)
+    val intermediateCertificate = buildIntermediateCertificate(intermediateKeyPair.getPublic, intermediateSubjectName, caKeyPair.getPrivate, rootCertificate, tomorrow)
+    val endCertificate = buildEndCertificate(endKeyPair.getPublic, endSubjectName, intermediateKeyPair.getPrivate, intermediateCertificate, tomorrow)
+
+    (rootCertificate, intermediateCertificate, endCertificate, caKeyPair.getPrivate)
+
+  }
 
 }

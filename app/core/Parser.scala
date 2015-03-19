@@ -16,8 +16,6 @@ import scala.collection.JavaConversions._
 
 object Parser {
 
-
-
   def parsePurchaseField(field: Any) = {
     val fieldType = field.asInstanceOf[DLSequence].getObjectAt(0) match {
       case zz: ASN1Integer => zz.getValue.intValue

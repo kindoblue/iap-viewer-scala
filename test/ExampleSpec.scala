@@ -17,11 +17,9 @@ class HelloWorldSpec extends Specification {
       println(a)
       Parser.parsePurchasesFromURL(a).foreach(println)
 
-      TestDataGenerator.initBC
-
       val keyPair = TestDataGenerator.generateRSAKeys()
 
-      val cert = TestDataGenerator.buildRootCertificate(keyPair,new java.util.Date, "CN=Stefano")
+      val cert = TestDataGenerator.generateTestCertificate("CN=Stefano", "CN=Intermediate", "CN=End cert")
 
       println(cert)
 
