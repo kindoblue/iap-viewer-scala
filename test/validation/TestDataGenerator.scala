@@ -8,9 +8,12 @@ import javax.security.auth.x500.X500Principal
 
 import org.bouncycastle.asn1.x509.{Extension, BasicConstraints, KeyUsage}
 import org.bouncycastle.cert.X509CertificateHolder
-import org.bouncycastle.cert.jcajce.{JcaX509CertificateConverter, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
+import org.bouncycastle.cert.jcajce.{JcaCertStore, JcaX509CertificateConverter, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
+import org.bouncycastle.cms.{SignerInfoGenerator, CMSSignedData, CMSProcessableByteArray, CMSSignedDataGenerator}
+import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import org.bouncycastle.operator.ContentSigner
+import org.bouncycastle.operator.jcajce.{JcaDigestCalculatorProviderBuilder, JcaContentSignerBuilder}
 
 
 // see
@@ -165,29 +168,151 @@ object TestDataGenerator {
 
 
   /**
-   * 1) generate the key pair for the CA entit
-   * 2) build the root CA certificate
-   * 3) generate the key pair for intermediate entity
-   * 4) build the intermediate certificate
-   * 5) generate the key pair for end entity
-   * 6) build the end certificate
-   * 7) return the three certificate
+   *
+   *  Generate test certificates
    */
-  def generateTestCertificate(rootSubjectName: String,
+  def generateTestCertificates(rootSubjectName: String,
                               intermediateSubjectName: String,
                               endSubjectName: String ) = {
 
     val now = new Date
     val tomorrow = oneDayAfter(now)
-    val caKeyPair = generateRSAKeys()
-    val intermediateKeyPair = generateRSAKeys()
-    val endKeyPair = generateRSAKeys()
 
+    // generate key pairs for CA, intermediate and end certificates
+    val caKeyPair = generateRSAKeys
+    val intermediateKeyPair = generateRSAKeys
+    val endKeyPair = generateRSAKeys
+
+    // generate the CA, intermediate and end certificates
     val rootCertificate = buildRootCertificate(caKeyPair,tomorrow,rootSubjectName)
     val intermediateCertificate = buildIntermediateCertificate(intermediateKeyPair.getPublic, intermediateSubjectName, caKeyPair.getPrivate, rootCertificate, tomorrow)
     val endCertificate = buildEndCertificate(endKeyPair.getPublic, endSubjectName, intermediateKeyPair.getPrivate, intermediateCertificate, tomorrow)
 
+    // return the tuple with certificates and the CA private key
     (rootCertificate, intermediateCertificate, endCertificate, caKeyPair.getPrivate)
+
+  }
+
+  def generateSingleCertificate(subjectName: String) = {
+
+    val now = new Date
+    val tomorrow = oneDayAfter(now)
+
+    val caKeyPair = generateRSAKeys
+
+    buildRootCertificate(caKeyPair, tomorrow, subjectName)
+
+  }
+
+
+  /**
+   * Create the CMS signed data, that will be used to test validation. The message will be
+   * encapsulated in the signature
+   *
+   * @param message the message to sign
+   * @param root  the root certificate
+   * @param intermediate the intermediate certificate
+   * @param end the end certificate that will be used to sign the message
+   * @param privateKey the private key used to create the end certificate (you need it to sign stuff)
+   * @return the signed data
+   */
+  def createSignedData(message : String,
+                       root: X509Certificate,
+                       intermediate: X509Certificate,
+                       end: X509Certificate,
+                       privateKey: PrivateKey ) : CMSSignedData = {
+
+
+    /**
+     * Create a byte array that can be signed
+     *
+     * implicit param the message to sign
+     * @return CMSProcessableByteArray
+     */
+    def createProcessableData : CMSProcessableByteArray = {
+
+      // get the array of bytes from the message
+      val bytes = message.getBytes
+
+      // create and return the processable array
+      new CMSProcessableByteArray(bytes)
+    }
+
+    /**
+     * Create a certification store
+     *
+     * implicit params: root, intermediate, end certificates
+     * @return JcaCertStore
+     */
+    def createCertStore : JcaCertStore = {
+
+      // create the list of certificates
+      val certList = List(root, intermediate, end)
+
+      // create and return the certification store
+      import collection.JavaConversions._
+      new JcaCertStore(certList)
+
+    }
+
+    /**
+     * Create the signer info generator
+     * @param contentSigner the signer, basically an object wrapping the private key
+     * @param certificate the certificate
+     * @return signer info generator
+     */
+    def createSignerInfoGenerator(contentSigner : ContentSigner, certificate: X509Certificate) : SignerInfoGenerator = {
+
+      // we need a digest calculator
+      val digestCalculator = new JcaDigestCalculatorProviderBuilder().setProvider("BC").build()
+
+      // we create a builder based on the digest calculator
+      val generatorBuilder = new JcaSignerInfoGeneratorBuilder(digestCalculator)
+
+      // build and return the signer info generator
+      generatorBuilder.build(contentSigner, certificate)
+    }
+
+
+    /**
+     * Create the CMS generator
+     *
+     * @return CMS signed data generator
+     */
+    def createCMSGenerator : CMSSignedDataGenerator = {
+
+      // create the certificate store (implicit input: root, intermediate, end certificates)
+      val certStore = createCertStore
+
+      // create the content signer
+      val contentSignerBuilder = new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC")
+      val contentSigner = contentSignerBuilder.build(privateKey)
+
+      // create the signer info generator
+      val signerInfoGenerator = createSignerInfoGenerator(contentSigner, end)
+
+      // create the CMS signed data generator
+      val generator = new CMSSignedDataGenerator
+
+      // setup the generator with the signer info generator and certificate store
+      generator.addSignerInfoGenerator(signerInfoGenerator)
+      generator.addCertificates(certStore)
+
+      // return the CMS signed data generator
+      generator
+
+    }
+
+
+    // create the processable data from the input message
+    val data = createProcessableData
+
+    // create the CMS signed data generator
+    val cmsGenerator = createCMSGenerator
+
+    // generate the CMS signed data
+    // the flag true means: content should be encapsulated in the signature
+    cmsGenerator.generate(data, true)
 
   }
 

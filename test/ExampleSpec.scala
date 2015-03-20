@@ -19,9 +19,14 @@ class HelloWorldSpec extends Specification {
 
       val keyPair = TestDataGenerator.generateRSAKeys()
 
-      val cert = TestDataGenerator.generateTestCertificate("CN=Stefano", "CN=Intermediate", "CN=End cert")
+      val cert = TestDataGenerator.generateTestCertificates("CN=Stefano", "CN=Intermediate", "CN=End cert")
 
-      println(cert)
+      val (root, intermediate, end, privateKey) = cert
+
+      val envelope = TestDataGenerator.createSignedData("LALLER", root, intermediate, end, privateKey)
+
+      println(envelope.getSignedContent)
+
 
       "Hello world" must startWith("Hello")
 
