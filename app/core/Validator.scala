@@ -1,10 +1,11 @@
 package core
 
-import java.security.cert.{TrustAnchor, PKIXParameters, X509Certificate, CertificateFactory}
+import java.security.cert._
 
 
 import Common.{using, convertX509}
-import org.bouncycastle.cms.CMSSignedData
+import org.bouncycastle.cert.X509CertificateHolder
+import org.bouncycastle.cms.{SignerInformation, CMSSignedData}
 
 /**
  * Created by Stefano on 14/02/15.
@@ -69,6 +70,49 @@ object Validator {
   def getCertificateFrom(signedData: CMSSignedData) : Iterable[java.security.cert.X509Certificate] = {
     import scala.collection.JavaConversions._
     signedData.getCertificates.getMatches(null).map(convertX509)
+
+  }
+
+  /**
+   * Return the certificate of the signer, embedded in the envelope
+   * @param signedData the signed data
+   * @return the certificate of the signer, in x509 format
+   */
+  def getSignerCertificateFrom(signedData: CMSSignedData) : X509Certificate  = {
+
+    // get signer (there is only one, so go fetch the first)
+    val signerInfo : SignerInformation = signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf
+
+    // get the certificate of the signer
+    val certHolder : X509CertificateHolder = signedData.getCertificates.getMatches(signerInfo.getSID).iterator.next.asInstanceOf
+
+    // convert the certificate to x509 format
+    convertX509(certHolder)
+  }
+
+
+  /**
+   * Validate the certification path, using the input certificate as trust anchor
+   * @param signedData  the signed data
+   * @param trustAnchorCert the certificate to use as trust anchor
+   * @return the result of the validation
+   */
+  def validateCertPath(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : CertPathValidatorResult = {
+
+    // get the list of the certificates in x509 format
+    val certList = getCertificateFrom(signedData)
+
+    // creates the certificate path from the certificate list
+    val certPath = ???
+
+    // creates a pkix parameters to drive the validation
+    val pkix = createPKIXParams(trustAnchorCert)
+
+    // create the validator
+    val validator = CertPathValidator.getInstance("PKIX", "BC")
+
+    // validate
+    validator.validate(certPath, pkix)
 
   }
 
