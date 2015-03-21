@@ -1,6 +1,6 @@
 import java.math.BigInteger
 import java.security._
-import java.security.cert.X509Certificate
+import java.security.cert.{CertificateFactory, X509Certificate}
 import java.util.{Calendar, Date}
 import javax.security.auth.x500.X500Principal
 import org.bouncycastle.asn1.x509.{Extension, KeyUsage, BasicConstraints}
@@ -14,7 +14,6 @@ import org.bouncycastle.operator.jcajce.{JcaDigestCalculatorProviderBuilder, Jca
 object TestDataGeneratorPlay {
   // register the Bouncy Castle provider
   Security.addProvider(new BouncyCastleProvider)
-
   def generateRSAKeys() : KeyPair = {
 
     // create a key generator
@@ -25,7 +24,6 @@ object TestDataGeneratorPlay {
     // generate the key pair
     generator.generateKeyPair()
   }
-
   def getCertificateBuilder(issuer : String,
                             expiration: Date,
                             subject: String,
@@ -44,7 +42,6 @@ object TestDataGeneratorPlay {
     // all the mandatory objects
     new JcaX509v3CertificateBuilder(x509Issuer, serial, now, expiration, x509Subject, publicKey)
   }
-
   def buildCertificate(subjectPublicKey: PublicKey,
                        subjectName: String,
                        signingPrivateKey: PrivateKey,
@@ -75,7 +72,6 @@ object TestDataGeneratorPlay {
     // build the certificate
     certBuilder.build(contentSigner)
   }
-
   def oneDayAfter(now: Date) = {
 
     val cal = Calendar.getInstance()
@@ -83,12 +79,10 @@ object TestDataGeneratorPlay {
     cal.add(Calendar.DATE, 1)
     cal.getTime
   }
-
   def convertX509(holder : X509CertificateHolder) = {
     val converter = new JcaX509CertificateConverter().setProvider("BC")
     converter.getCertificate(holder)
   }
-
   def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) = {
 
     // create the content signer
@@ -110,7 +104,6 @@ object TestDataGeneratorPlay {
     // return the certificate in x509 format
     convertX509(cert)
   }
-
   def buildIntermediateCertificate(subjecPublicKey: PublicKey,
                                    subjectName: String,
                                    signingPrivateKey: PrivateKey,
@@ -124,7 +117,6 @@ object TestDataGeneratorPlay {
 
     convertX509(intermediate)
   }
-
   def buildEndCertificate(subjecPublicKey: PublicKey,
                           subjectName: String,
                           signingPrivateKey: PrivateKey,
@@ -165,7 +157,6 @@ object TestDataGeneratorPlay {
     // return the tuple with certificates and the CA private key
     (rootCertificate, intermediateCertificate, endCertificate, caKeyPair.getPrivate)
   }
-
   def generateSingleCertificate(subjectName: String) = {
 
     val now = new Date
@@ -175,7 +166,6 @@ object TestDataGeneratorPlay {
 
     buildRootCertificate(caKeyPair, tomorrow, subjectName)
   }
-
   def createCertStore(root: X509Certificate, intermediate: X509Certificate, end: X509Certificate) = {
 
     val certList = List(root, intermediate, end)
@@ -183,13 +173,11 @@ object TestDataGeneratorPlay {
     import collection.JavaConversions._
     new JcaCertStore(certList)
   }
-
   def createContentSigner(privateKey: PrivateKey) = {
 
     val contentSigner = new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC")
     contentSigner.build(privateKey)
   }
-
   def createSignerInfoGenerator(contentSigner : ContentSigner, certificate: X509Certificate) = {
 
     val digestCalculator = new JcaDigestCalculatorProviderBuilder().setProvider("BC").build()
@@ -198,7 +186,6 @@ object TestDataGeneratorPlay {
 
     generatorBuilder.build(contentSigner, certificate)
   }
-
   def createCMSGenerator(root: X509Certificate, intermediate: X509Certificate, end: X509Certificate, privateKey: PrivateKey) : CMSSignedDataGenerator = {
     val certStore = createCertStore(root, intermediate, end)
     val contentSigner = createContentSigner(privateKey)
@@ -212,18 +199,31 @@ object TestDataGeneratorPlay {
     generator
 
   }
-
   def createProcessableData(message: String) = {
     val bytes = message.getBytes
     new CMSProcessableByteArray(bytes)
   }
-
   def createSignedData(message : String, root: X509Certificate, intermediate: X509Certificate, end: X509Certificate, privateKey: PrivateKey ) = {
     val data = createProcessableData(message)
     val cmsGenerator = createCMSGenerator(root,intermediate, end, privateKey)
     cmsGenerator.generate(data, true)
   }
-
   val a = generateRSAKeys()
   val b = getCertificateBuilder("CN=Stefano", new Date, "CN=Stefano", a.getPublic)
+  def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B =
+    try {
+      f(resource) }
+    finally {
+      resource.close()
+  }
+  def appleCACertificate() : java.security.cert.Certificate = {
+    val b = this.getClass.getResource("/AppleIncRootCertificate.crt")
+    using(b.openStream()) {
+      CertificateFactory.getInstance("X.509", "BC").generateCertificate(_)
+      }
+    }
+  }
+
+  val c = getClass.getResource("/AppleIncRootCertificate.crt")
+
 }

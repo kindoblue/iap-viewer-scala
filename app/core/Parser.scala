@@ -1,5 +1,7 @@
 package core
 
+import Common.using
+
 import java.io.InputStream
 import java.net.URL
 
@@ -115,9 +117,12 @@ object Parser {
 
   def parsePurchasesFromURL(receiptUrl: URL) = {
 
-    val stream = receiptUrl.openStream()
-    val signedData = getSignedData(stream)
-    val content = getContent(signedData)
+    val content = using(receiptUrl.openStream()) {
+      stream => {
+        val signedData = getSignedData(stream)
+        getContent(signedData)
+      }
+    }
 
     content.filter( isPurchase(_)).map(parsePurchase(_))
 
