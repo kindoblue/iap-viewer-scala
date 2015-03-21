@@ -107,10 +107,7 @@ object TestDataGenerator {
 
   }
 
-  def convertX509(holder : X509CertificateHolder) = {
-    val converter = new JcaX509CertificateConverter().setProvider("BC")
-    converter.getCertificate(holder)
-  }
+
 
 
   def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) = {

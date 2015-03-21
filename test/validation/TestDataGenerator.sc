@@ -1,12 +1,13 @@
 import java.math.BigInteger
 import java.security._
-import java.security.cert.{CertificateFactory, X509Certificate}
+import java.security.cert.{PKIXParameters, TrustAnchor, CertificateFactory, X509Certificate}
 import java.util.{Calendar, Date}
 import javax.security.auth.x500.X500Principal
+import core.Common._
 import org.bouncycastle.asn1.x509.{Extension, KeyUsage, BasicConstraints}
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.{JcaCertStore, JcaX509CertificateConverter, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
-import org.bouncycastle.cms.{CMSProcessableByteArray, CMSSignedDataGenerator}
+import org.bouncycastle.cms.{CMSSignedData, CMSProcessableByteArray, CMSSignedDataGenerator}
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.ContentSigner
@@ -79,10 +80,7 @@ object TestDataGeneratorPlay {
     cal.add(Calendar.DATE, 1)
     cal.getTime
   }
-  def convertX509(holder : X509CertificateHolder) = {
-    val converter = new JcaX509CertificateConverter().setProvider("BC")
-    converter.getCertificate(holder)
-  }
+
   def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) = {
 
     // create the content signer
@@ -197,7 +195,6 @@ object TestDataGeneratorPlay {
     generator.addCertificates(certStore)
 
     generator
-
   }
   def createProcessableData(message: String) = {
     val bytes = message.getBytes
@@ -222,7 +219,49 @@ object TestDataGeneratorPlay {
       CertificateFactory.getInstance("X.509", "BC").generateCertificate(_)
       }
     }
+
+  /**
+   * Returns the pkix parameters based on the input certificate as trust anchor,
+   * correctly configured.
+   * @param certificate the certificate to use as trust anchor
+   */
+  def createPKIXParams(certificate: X509Certificate) = {
+
+    // create the trust anchor
+    val trustAnchor = new TrustAnchor(certificate, null)
+
+    // create a set to contain the trust anchor
+    val jSet : java.util.HashSet[TrustAnchor] = new java.util.HashSet[TrustAnchor]()
+    jSet.add(trustAnchor)
+
+    // create the pkix parameters
+    val pkix = new PKIXParameters(jSet)
+
+    // configure
+    pkix.setDate(new java.util.Date)
+    pkix.setRevocationEnabled(false)
+
+    pkix
+
   }
+
+  def convertX509(holder: Any) = {
+    val converter = new JcaX509CertificateConverter().setProvider("BC")
+    converter.getCertificate(holder.asInstanceOf)
+  }
+
+  def getCertificateFrom(signedData: CMSSignedData) : Iterable[java.security.cert.X509Certificate] = {
+    import scala.collection.JavaConversions._
+    signedData.getCertificates.getMatches(null).map(convertX509)
+
+  }
+
+  /**
+   * Convert a certificate from Bouncy Castle format to x509.
+   * @param holder the input certificate
+   * @return the certificate in x509 format
+   */
+
 
   val c = getClass.getResource("/AppleIncRootCertificate.crt")
 
