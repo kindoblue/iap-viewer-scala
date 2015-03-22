@@ -5,7 +5,10 @@ import java.security.cert._
 
 import Common.{using, convertX509}
 import org.bouncycastle.cert.X509CertificateHolder
+import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
 import org.bouncycastle.cms.{SignerInformation, CMSSignedData}
+
+import scala.util.control.NonFatal
 
 /**
  * Created by Stefano on 14/02/15.
@@ -74,6 +77,13 @@ object Validator {
   }
 
   /**
+   * Get the signer info object from the envelope
+   * @param signedData signed data (envelope)
+   * @return SignerInformation
+   */
+  def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation = signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf
+
+  /**
    * Return the certificate of the signer, embedded in the envelope
    * @param signedData the signed data
    * @return the certificate of the signer, in x509 format
@@ -81,7 +91,7 @@ object Validator {
   def getSignerCertificateFrom(signedData: CMSSignedData) : X509Certificate  = {
 
     // get signer (there is only one, so go fetch the first)
-    val signerInfo : SignerInformation = signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf
+    val signerInfo  = getSignerInfoFrom(signedData)
 
     // get the certificate of the signer
     val certHolder : X509CertificateHolder = signedData.getCertificates.getMatches(signerInfo.getSID).iterator.next.asInstanceOf
@@ -100,10 +110,13 @@ object Validator {
   def validateCertPath(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : CertPathValidatorResult = {
 
     // get the list of the certificates in x509 format
-    val certList = getCertificateFrom(signedData)
+    val certList = getCertificateFrom(signedData).toList
+
+    // to convert from scala list to java.util.List, in the following line
+    import scala.collection.JavaConversions._
 
     // creates the certificate path from the certificate list
-    val certPath = ???
+    val certPath = CertificateFactory.getInstance("x.509", "BC").generateCertPath(certList)
 
     // creates a pkix parameters to drive the validation
     val pkix = createPKIXParams(trustAnchorCert)
@@ -115,6 +128,41 @@ object Validator {
     validator.validate(certPath, pkix)
 
   }
+
+
+  /**
+   * Check the signature. It validates the certification path using the input trust anchor and
+   * then the embedded signature embedded in the envelope.
+   *
+   * @param signedData signed data containing the message and signature (envelope)
+   * @param trustAnchorCert the trust anchor to validate the certification path
+   * @return true if the signature is valid
+   */
+  def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Boolean = {
+
+    try {
+
+      // validate the cert path (not so functional ;-)
+      validateCertPath(signedData, trustAnchorCert)
+
+      // get the signer info
+      val signerInfo = getSignerInfoFrom(signedData)
+
+      // get the signer certificate
+      val signerCert = getSignerCertificateFrom(signedData)
+
+      // build the verifier using the signer certificate
+      val verifier = new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(signerCert)
+
+      // return true if the signature is valid
+      signerInfo.verify(verifier)
+
+    } catch {
+      case NonFatal(t) => false
+    }
+
+  }
+
 
 }
 

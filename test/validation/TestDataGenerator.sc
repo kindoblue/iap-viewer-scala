@@ -9,7 +9,7 @@ import org.bouncycastle.asn1.x509.{Extension, KeyUsage, BasicConstraints}
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.{JcaCertStore, JcaX509CertificateConverter, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
 import org.bouncycastle.cms._
-import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder
+import org.bouncycastle.cms.jcajce.{JcaSimpleSignerInfoVerifierBuilder, JcaSimpleSignerInfoGeneratorBuilder, JcaSignerInfoGeneratorBuilder}
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.{JcaDigestCalculatorProviderBuilder, JcaContentSignerBuilder}
@@ -288,6 +288,23 @@ object TestDataGeneratorPlay {
 
     // validate
     validator.validate(certPath, pkix)
+
+  }
+
+  def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation = signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf
+
+
+  def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Boolean = {
+
+    val signerInfo = getSignerInfoFrom(signedData)
+
+    val signerCert = getSignerCertificateFrom(signedData)
+
+    val verifier = new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(signerCert)
+
+    val certPathValid = validateCertPath(signedData, trustAnchorCert)
+
+    certPathValid && signerInfo.verify(verifier)
 
   }
 
