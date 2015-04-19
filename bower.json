@@ -1,0 +1,23 @@
+{
+  "name": "iap-viewer",
+  "version": "0.0.0",
+  "authors": [
+    "Stefano S <kindoblue@gmail.com>"
+  ],
+  "description": "A simple web app where to upload an in app purchase receipt from Apple server an",
+  "license": "MIT",
+  "homepage": "www.kindoblue.nl",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap-sortable": "~1.9.0",
+    "bootstrap": "~3.3.1",
+    "jquery": "~2.1.1"
+  }
+}
