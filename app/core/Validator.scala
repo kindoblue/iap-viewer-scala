@@ -2,8 +2,8 @@ package core
 
 import java.security.cert._
 
-
 import Common.{using, convertX509}
+
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
 import org.bouncycastle.cms.{SignerInformation, CMSSignedData}
@@ -81,7 +81,8 @@ object Validator {
    * @param signedData signed data (envelope)
    * @return SignerInformation
    */
-  def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation = signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf
+  def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation =
+    signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf[SignerInformation]
 
   /**
    * Return the certificate of the signer, embedded in the envelope
@@ -94,7 +95,7 @@ object Validator {
     val signerInfo  = getSignerInfoFrom(signedData)
 
     // get the certificate of the signer
-    val certHolder : X509CertificateHolder = signedData.getCertificates.getMatches(signerInfo.getSID).iterator.next.asInstanceOf
+    val certHolder : X509CertificateHolder = signedData.getCertificates.getMatches(signerInfo.getSID).iterator.next.asInstanceOf[X509CertificateHolder]
 
     // convert the certificate to x509 format
     convertX509(certHolder)

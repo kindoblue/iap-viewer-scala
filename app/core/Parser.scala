@@ -9,8 +9,8 @@ import org.bouncycastle.asn1._
 import org.bouncycastle.asn1.cms.ContentInfo
 import org.bouncycastle.cms.CMSSignedData
 
-// see http://www.scala-lang.org/api/current/#scala.collection.JavaConversions$
-import scala.collection.JavaConversions._
+// see http://stackoverflow.com/questions/8301947/what-is-the-difference-between-javaconverters-and-javaconversions-in-scala
+import scala.collection.JavaConverters._
 
 /**
  * Created by Stefano on 14/02/15.
@@ -56,11 +56,12 @@ object Parser {
       case _ => throw new ClassCastException
     }
 
+    // get the iterator on fields
+    val fieldIterator : Iterator[Any] = fieldSet.asInstanceOf[ASN1Set].getObjects.asScala
 
-    val fieldList = fieldSet.asInstanceOf[ASN1Set].getObjects
+    // reduce to a single map with a key for every field
+    fieldIterator.map(parsePurchaseField).reduce(_++_)
 
-
-    fieldList.map(parsePurchaseField(_)).reduceLeft(_++_)
   }
 
   /**
@@ -110,7 +111,7 @@ object Parser {
     // if the asn1 set is correctly retrieved, we return the
     // iterator
     asn1Set match {
-      case ff2: ASN1Set => ff2.getObjects
+      case ff2: ASN1Set => ff2.getObjects.asScala
       case _ => throw new ClassCastException
     }
   }
@@ -124,7 +125,7 @@ object Parser {
       }
     }
 
-    content.filter( isPurchase(_)).map(parsePurchase(_))
+    content.filter(isPurchase).map(parsePurchase)
 
   } // end of parsePurchasesFromURL
 

@@ -6,15 +6,17 @@ import java.security.cert.X509Certificate
 import java.util.{Calendar, Date}
 import javax.security.auth.x500.X500Principal
 
+import core.Common.convertX509
+
 import org.bouncycastle.asn1.x509.{Extension, BasicConstraints, KeyUsage}
-import org.bouncycastle.cert.X509CertificateHolder
-import org.bouncycastle.cert.jcajce.{JcaCertStore, JcaX509CertificateConverter, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
+import org.bouncycastle.cert.jcajce.{JcaCertStore, JcaX509ExtensionUtils, JcaX509v3CertificateBuilder}
 import org.bouncycastle.cms.{SignerInfoGenerator, CMSSignedData, CMSProcessableByteArray, CMSSignedDataGenerator}
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.{JcaDigestCalculatorProviderBuilder, JcaContentSignerBuilder}
 
+import scala.collection.JavaConverters._
 
 // see
 // http://www.bouncycastle.org/docs/pkixdocs1.5on/index.html
@@ -110,7 +112,7 @@ object TestDataGenerator {
 
 
 
-  def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) = {
+  def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) : X509Certificate = {
 
     // create the content signer
     val contentSignerBuilder =  new JcaContentSignerBuilder("SHA1withRSA").setProvider("BC")
@@ -157,9 +159,9 @@ object TestDataGenerator {
     val basicConstraints = new BasicConstraints(false)
     val keyUsage = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment)
 
-    val intermediate = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, caCertificate, expiration, basicConstraints, keyUsage)
+    val end = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, caCertificate, expiration, basicConstraints, keyUsage)
 
-    convertX509(intermediate)
+    convertX509(end)
 
   }
 
@@ -185,8 +187,8 @@ object TestDataGenerator {
     val intermediateCertificate = buildIntermediateCertificate(intermediateKeyPair.getPublic, intermediateSubjectName, caKeyPair.getPrivate, rootCertificate, tomorrow)
     val endCertificate = buildEndCertificate(endKeyPair.getPublic, endSubjectName, intermediateKeyPair.getPrivate, intermediateCertificate, tomorrow)
 
-    // return the tuple with certificates and the CA private key
-    (rootCertificate, intermediateCertificate, endCertificate, caKeyPair.getPrivate)
+    // return the tuple with certificates and the end private key
+    (rootCertificate, intermediateCertificate, endCertificate, endKeyPair.getPrivate)
 
   }
 
@@ -247,8 +249,7 @@ object TestDataGenerator {
       val certList = List(root, intermediate, end)
 
       // create and return the certification store
-      import collection.JavaConversions._
-      new JcaCertStore(certList)
+      new JcaCertStore(certList.asJava)
 
     }
 

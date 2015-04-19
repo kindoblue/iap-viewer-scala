@@ -1,5 +1,7 @@
 package core
 
+import java.security.cert.X509Certificate
+
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 
@@ -38,7 +40,7 @@ object Common {
    * @param holder the input certificate
    * @return the certificate in x509 format
    */
-  def convertX509(holder : X509CertificateHolder) = {
+  def convertX509(holder : X509CertificateHolder) : X509Certificate = {
     val converter = new JcaX509CertificateConverter().setProvider("BC")
     converter.getCertificate(holder)
   }
@@ -48,9 +50,9 @@ object Common {
    * @param holder the input certificate
    * @return the certificate in x509 format
    */
-  def convertX509(holder: Any) = {
+  def convertX509(holder: Any) : X509Certificate = {
     val converter = new JcaX509CertificateConverter().setProvider("BC")
-    converter.getCertificate(holder.asInstanceOf)
+    converter.getCertificate(holder.asInstanceOf[X509CertificateHolder])
   }
 
 }
