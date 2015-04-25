@@ -5,6 +5,8 @@ import org.specs2.mutable._
 import core._
 import validation._
 
+import scala.util.{Failure, Success}
+
 class UnitSpec extends Specification {
 
   val certs = TestDataGenerator.generateTestCertificates("CN=Stefano", "CN=Intermediate", "CN=End cert")
@@ -20,12 +22,14 @@ class UnitSpec extends Specification {
 
     "validate successfully the envelope when using the right anchor" in {
 
-      Validator.isValidSignature(envelope, root) must_== true
+      Validator.isValidSignature(envelope, root) must beSuccessfulTry.withValue(true)
 
     }
 
     "NOT validate the envelope when using the wrong anchor" in {
-      Validator.isValidSignature(envelope, wrong) must_== false
+
+      Validator.isValidSignature(envelope, wrong) must beFailedTry
+
     }
 
 

@@ -8,7 +8,10 @@ import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
 import org.bouncycastle.cms.{SignerInformation, CMSSignedData}
 
+import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
+
+import scala.collection.JavaConverters._
 
 /**
  * Created by Stefano on 14/02/15.
@@ -24,7 +27,7 @@ object Validator {
    * Read from resources the Apple CA certificate, to validate the receipts.
    *
    */
-  def appleCACertificate() : java.security.cert.Certificate = {
+  private def appleCACertificate() : java.security.cert.Certificate = {
 
     // get the url of the certificate
     val url = this.getClass.getResource("/AppleIncRootCertificate.crt")
@@ -41,7 +44,7 @@ object Validator {
    * correctly configured.
    * @param certificate the certificate to use as trust anchor
    */
-  def createPKIXParams(certificate: X509Certificate) : PKIXParameters = {
+  private def createPKIXParams(certificate: X509Certificate) : PKIXParameters = {
 
     // create the trust anchor
     val trustAnchor = new TrustAnchor(certificate, null)
@@ -70,9 +73,9 @@ object Validator {
    *
    * @param signedData the envelope containing the also the certificates
    */
-  def getCertificateFrom(signedData: CMSSignedData) : Iterable[java.security.cert.X509Certificate] = {
-    import scala.collection.JavaConversions._
-    signedData.getCertificates.getMatches(null).map(convertX509)
+  private def getCertificateFrom(signedData: CMSSignedData) : Iterable[java.security.cert.X509Certificate] = {
+
+    signedData.getCertificates.getMatches(null).asScala.map(convertX509)
 
   }
 
@@ -81,7 +84,7 @@ object Validator {
    * @param signedData signed data (envelope)
    * @return SignerInformation
    */
-  def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation =
+  private def getSignerInfoFrom(signedData: CMSSignedData) : SignerInformation =
     signedData.getSignerInfos.getSigners.iterator.next.asInstanceOf[SignerInformation]
 
   /**
@@ -89,7 +92,7 @@ object Validator {
    * @param signedData the signed data
    * @return the certificate of the signer, in x509 format
    */
-  def getSignerCertificateFrom(signedData: CMSSignedData) : X509Certificate  = {
+  private def getSignerCertificateFrom(signedData: CMSSignedData) : X509Certificate  = {
 
     // get signer (there is only one, so go fetch the first)
     val signerInfo  = getSignerInfoFrom(signedData)
@@ -108,13 +111,10 @@ object Validator {
    * @param trustAnchorCert the certificate to use as trust anchor
    * @return the result of the validation
    */
-  def validateCertPath(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : CertPathValidatorResult = {
+  private def validateCertPath(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : CertPathValidatorResult = {
 
     // get the list of the certificates in x509 format
-    val certList = getCertificateFrom(signedData).toList
-
-    // to convert from scala list to java.util.List, in the following line
-    import scala.collection.JavaConversions._
+    val certList = getCertificateFrom(signedData).toList.asJava
 
     // creates the certificate path from the certificate list
     val certPath = CertificateFactory.getInstance("x.509", "BC").generateCertPath(certList)
@@ -137,9 +137,9 @@ object Validator {
    *
    * @param signedData signed data containing the message and signature (envelope)
    * @param trustAnchorCert the trust anchor to validate the certification path
-   * @return true if the signature is valid
+   * @return Try(true) if the signature is valid
    */
-  def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Boolean = {
+  def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Try[Boolean] = {
 
     try {
 
@@ -156,10 +156,10 @@ object Validator {
       val verifier = new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(signerCert)
 
       // return true if the signature is valid
-      signerInfo.verify(verifier)
+      Try(signerInfo.verify(verifier))
 
     } catch {
-      case NonFatal(t) => false
+      case NonFatal(t) => Failure(t)
     }
 
   }
