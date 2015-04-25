@@ -112,16 +112,34 @@ object Parser {
     // ASN1Primitive generic object out of it
     val asn1Set : ASN1Primitive = signedData.getSignedContent.getContent match  {
       case z2: Array[Byte] => ASN1Primitive.fromByteArray(z2)
-      case _ => throw new ClassCastException("signedData.getSignedContent.getContent cannot be parsed into a ASN1 entity")
+      case _ => throw new ClassCastException("An ASN1 primitive object could not be created from the signed content")
     }
 
     // if the asn1 set is correctly retrieved, we return the scala iterator
     asn1Set match {
       case ff2: ASN1Set => ff2.getObjects.asScala
-      case _ => throw new ClassCastException
+      case _ => throw new ClassCastException("Expected an ASN1Set object as content in signed data")
     }
   }
 
+  /**
+   * The entry point of the receipt parser. It gets an url to the receipt and
+   * return a list of maps, one map for every purchase.
+   *
+   * Example for a map representing a single purchase:
+   *
+   * Map(transaction-id -> 1000000101874971,
+   *     purchase-date -> 2014-02-19T13:26:54Z,
+   *     org-transaction-id -> 1000000101874971,
+   *     quantity -> 1, cancellation-date -> ,
+   *     subscription-exp-date -> ,
+   *     product-id -> 1_month_subscription,
+   *     org-purchase-date -> 2014-02-18T16:18:09Z)
+   *
+   *
+   * @param receiptUrl the url of the receipt
+   * @return the List of purchases or Failure
+   */
   def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[_ <: String, Any]]]= {
 
     try {
