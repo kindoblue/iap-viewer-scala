@@ -8,6 +8,10 @@ import java.net.URL
 import org.bouncycastle.asn1._
 import org.bouncycastle.asn1.cms.ContentInfo
 import org.bouncycastle.cms.CMSSignedData
+import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
+
+import scala.util.{Failure, Try}
+import scala.util.control.NonFatal
 
 // see http://stackoverflow.com/questions/8301947/what-is-the-difference-between-javaconverters-and-javaconversions-in-scala
 import scala.collection.JavaConverters._
@@ -18,7 +22,7 @@ import scala.collection.JavaConverters._
 
 object Parser {
 
-  def parsePurchaseField(field: Any) = {
+  private def parsePurchaseField(field: Any) = {
     val fieldType = field.asInstanceOf[DLSequence].getObjectAt(0) match {
       case zz: ASN1Integer => zz.getValue.intValue
       case _ => throw new ClassCastException("Expected an integer as field type")
@@ -31,7 +35,7 @@ object Parser {
       case s: DERUTF8String => s.getString
       case z: ASN1Integer => z.getValue.intValue
       case d: DERIA5String =>  d.getString
-      case _ =>   throw new ClassCastException("AAA")
+      case _ =>   throw new ClassCastException("Field value not expected")
     }
     fieldType match {
       case 1701 => Map("quantity" -> f)
@@ -46,7 +50,7 @@ object Parser {
     }
   }
 
-  def parsePurchase(purchase: Any)  = {
+  private def parsePurchase(purchase: Any)  = {
     val dlSeq = purchase match {
       case z: DLSequence => z.getObjectAt(2)
       case _ => throw new ClassCastException("Expected a DLSequence as a purchase record")
@@ -70,7 +74,7 @@ object Parser {
    * @param maybePurchase
    * @return true if the input is a purchase record
    */
-  def isPurchase(maybePurchase: Any) : Boolean = {
+  private def isPurchase(maybePurchase: Any) : Boolean = {
     val dlSeq = maybePurchase match {
       case z: DLSequence => z
       case _ => throw new ClassCastException("Expected a DLSequence as a purchase record")
@@ -89,43 +93,62 @@ object Parser {
     a  == 17 && b == 1
   }
 
-  def getSignedData(stream: InputStream): CMSSignedData = {
-    // open asn1 stream
+  private def getSignedData(stream: InputStream): CMSSignedData = {
+
+    // create an asn1 stream
     val asn1Stream = new ASN1InputStream(stream)
+
     // read object from asn1 stream and create the content info
     // out of it
     val contentInfo =  ContentInfo.getInstance(asn1Stream.readObject())
+
     // create the cms signed data object out of content info object
     new CMSSignedData(contentInfo)
   }
 
-  def getContent(signedData: CMSSignedData) = {
+  private def getContentIterator(signedData: CMSSignedData) : Iterator[Any] = {
 
-    // retrieve the byte array of the signed content and
-    // try to build the ASN1Set out of it
-    val asn1Set = signedData.getSignedContent.getContent match  {
+    // retrieve the byte array of the signed content and create a
+    // ASN1Primitive generic object out of it
+    val asn1Set : ASN1Primitive = signedData.getSignedContent.getContent match  {
       case z2: Array[Byte] => ASN1Primitive.fromByteArray(z2)
-      case _ => throw new ClassCastException
+      case _ => throw new ClassCastException("signedData.getSignedContent.getContent cannot be parsed into a ASN1 entity")
     }
 
-    // if the asn1 set is correctly retrieved, we return the
-    // iterator
+    // if the asn1 set is correctly retrieved, we return the scala iterator
     asn1Set match {
       case ff2: ASN1Set => ff2.getObjects.asScala
       case _ => throw new ClassCastException
     }
   }
 
-  def parsePurchasesFromURL(receiptUrl: URL) = {
+  def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[_ <: String, Any]]]= {
 
-    val content = using(receiptUrl.openStream()) {
-      stream => {
-        val signedData = getSignedData(stream)
-        getContent(signedData)
+    try {
+
+      // open the receipt stream using the loan pattern
+      // get the signed data and then the content iterator
+      val rawEntries = using(receiptUrl.openStream()) {
+
+        stream => {
+
+          // get the signed data
+          val signedData = getSignedData(stream)
+
+          // return the content iterator
+          getContentIterator(signedData)
+        }
+
       }
+
+      // filter the raw entries, get only the purchases, parse them and
+      // return them as a list of maps
+      Try(rawEntries.filter(isPurchase).map(parsePurchase).toList)
+
+    } catch {
+      case NonFatal(t) => Failure(t)
     }
 
-    content.filter(isPurchase).map(parsePurchase)
 
   } // end of parsePurchasesFromURL
 
