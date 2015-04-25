@@ -25,6 +25,9 @@ import scala.collection.JavaConverters._
 // http://www.cryptoworkshop.com/guide/cwguide-070313.pdf
 
 /**
+ * Here are gathered methods to generate test data (keys, certificates, signed data) to be used in tests
+ * for the validator functionality
+ *
  * Created by Stefano on 15/03/15.
  */
 object TestDataGenerator {
@@ -33,6 +36,10 @@ object TestDataGenerator {
   // register the Bouncy Castle provider
   Security.addProvider(new BouncyCastleProvider)
 
+  /**
+   * Generate a pair of RSA keys
+   * @return the key pair
+   */
   def generateRSAKeys() : KeyPair = {
 
     // create a key generator
@@ -46,6 +53,15 @@ object TestDataGenerator {
 
   }
 
+  /**
+   * Create a certificate builder, able to generate certificates.
+   *
+   * @param issuer the issuer of the certificates that will built
+   * @param expiration the expiration of the certificates
+   * @param subject the subject of the certificate
+   * @param publicKey the public key of the subject that will be certified
+   * @return
+   */
   def getCertificateBuilder(issuer : String,
                             expiration: Date,
                             subject: String,
@@ -67,6 +83,18 @@ object TestDataGenerator {
 
   }
 
+  /**
+   * Build a certificate.
+   *
+   * @param subjectPublicKey the subject public key
+   * @param subjectName the subject nam
+   * @param signingPrivateKey the private key of the signer
+   * @param signingCertificate the certificate of the signer
+   * @param expiration the expiration of the certificate
+   * @param basicConstraints the basic constraints for the certificate
+   * @param keyUsage key usage allowed for the generated certificate
+   * @return
+   */
   def buildCertificate(subjectPublicKey: PublicKey,
                        subjectName: String,
                        signingPrivateKey: PrivateKey,
@@ -100,6 +128,12 @@ object TestDataGenerator {
   }
 
 
+  /**
+   * Generate a date object representing the day after of the input date
+   *
+   * @param the input date
+   * @return the date of one day after the input
+   */
   def oneDayAfter(now: Date) = {
 
     val cal = Calendar.getInstance()
@@ -109,9 +143,14 @@ object TestDataGenerator {
 
   }
 
-
-
-
+  /**
+   * Build a CA certificate
+   *
+   * @param keyPair the key pair of the issuer/subject
+   * @param expiration the expiration date
+   * @param signerX500Name the issuer/subject name
+   * @return the CA certificate
+   */
   def buildRootCertificate(keyPair: KeyPair, expiration: Date, signerX500Name: String) : X509Certificate = {
 
     // create the content signer
@@ -135,6 +174,16 @@ object TestDataGenerator {
 
   }
 
+  /**
+   * Build an intermediate certificate (the one signed by a CA certificates)
+   *
+   * @param subjecPublicKey the subject public key to be certified
+   * @param subjectName the subject name to be certified
+   * @param signingPrivateKey the signing private key (the issuer private key)
+   * @param caCertificate the CA certificate (the issuer certificate)
+   * @param expiration the expiration date of the certificate
+   * @return the intermediate certificate
+   */
   def buildIntermediateCertificate(subjecPublicKey: PublicKey,
                                    subjectName: String,
                                    signingPrivateKey: PrivateKey,
@@ -150,16 +199,26 @@ object TestDataGenerator {
 
   }
 
+  /**
+   * Build a generic (end certificate)
+   *
+   * @param subjecPublicKey the subject public key to be certified
+   * @param subjectName the subject name to be certified
+   * @param signingPrivateKey the signing private key (the issuer private key)
+   * @param issuerCertificate the issuer certificate (the issuer certificate)
+   * @param expiration the expiration date of the certificate
+   * @return the end certificate
+   */
   def buildEndCertificate(subjecPublicKey: PublicKey,
                           subjectName: String,
                           signingPrivateKey: PrivateKey,
-                          caCertificate: X509Certificate,
+                          issuerCertificate: X509Certificate,
                           expiration: Date ) : X509Certificate = {
 
     val basicConstraints = new BasicConstraints(false)
     val keyUsage = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment)
 
-    val end = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, caCertificate, expiration, basicConstraints, keyUsage)
+    val end = buildCertificate(subjecPublicKey, subjectName, signingPrivateKey, issuerCertificate, expiration, basicConstraints, keyUsage)
 
     convertX509(end)
 
@@ -167,8 +226,12 @@ object TestDataGenerator {
 
 
   /**
+   * Generate a chain of certificates: CA -> Intermediate -> End
    *
-   *  Generate test certificates
+   * @param rootSubjectName  the subject name for the CA certificate
+   * @param intermediateSubjectName the subject name for the Intermediate certificate
+   * @param endSubjectName the subject name for the End certificate
+   * @return a tuple with the three certificates and the private key of the subject of the end certificate
    */
   def generateTestCertificates(rootSubjectName: String,
                               intermediateSubjectName: String,
@@ -187,11 +250,17 @@ object TestDataGenerator {
     val intermediateCertificate = buildIntermediateCertificate(intermediateKeyPair.getPublic, intermediateSubjectName, caKeyPair.getPrivate, rootCertificate, tomorrow)
     val endCertificate = buildEndCertificate(endKeyPair.getPublic, endSubjectName, intermediateKeyPair.getPrivate, intermediateCertificate, tomorrow)
 
-    // return the tuple with certificates and the end private key
+    // return the tuple with certificates and the end private key (it is the end certificate that will be used to
+    // sign stuff, so the private key will be needed to the caller)
     (rootCertificate, intermediateCertificate, endCertificate, endKeyPair.getPrivate)
 
   }
 
+  /**
+   * Generate a CA certificate (simplified version)
+   * @param subjectName the subject/issuer name of the CA certificate
+   * @return the CA certificate
+   */
   def generateSingleCertificate(subjectName: String) = {
 
     val now = new Date
