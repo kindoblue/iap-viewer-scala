@@ -1,7 +1,36 @@
-@(message: String)
+@import scala.util.{Failure, Try}
+@import helper._
 
-@main("Welcome to Play") {
+@(purchases: Try[List[Map[_ <: String, Any]]])
 
-    @play20.welcome(message)
+@main("Apple In-App Purchases dumper/verifier") {
+
+   <div class="container">
+       <div class="page-header">
+           <h1>Apple In-App Purchases dumper</h1>
+       </div>
+
+       <p class="lead">The receipt you receive from Apple is DER encoded PKCS#7
+           signed message. You can upload a receipt and see the content here.
+           The receipt is validated but still no proper error handling when
+           things go wrong.
+       </p>
+
+       <div class="row">
+           <div class="col-md-6">
+               @form(action = routes.Application.uploadFile, 'enctype -> "multipart/form-data") {
+                   <div class="form-group">
+                       <input id="der-input-file" name="upfile" size="20000" type="file">
+                       <div class="help-block">Select an Apple receipt (DER format)</div>
+                   </div>
+                   <input class="btn btn-default" name="submit" type="submit" value="Upload">
+               }
+           </div>
+       </div>
+
+       @purchases
+
+
+   </div>
 
 }

@@ -8,7 +8,7 @@ import java.net.URL
 import org.bouncycastle.asn1._
 import org.bouncycastle.asn1.cms.ContentInfo
 import org.bouncycastle.cms.CMSSignedData
-import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
+
 
 import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
