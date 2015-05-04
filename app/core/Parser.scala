@@ -148,11 +148,12 @@ object Parser {
    */
   def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[_ <: String, Any]]]= {
 
-    // get the raw entries iterator, then filter and parse the purchases.
+
     // error handling with monadic approach (Try and for comprehension)
 
     for {
 
+      // get the raw entries as iterator
       rawEntries <- Try {
 
         // open the receipt stream using the loan pattern

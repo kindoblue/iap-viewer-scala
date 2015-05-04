@@ -141,7 +141,7 @@ object Validator {
    */
   def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Try[Boolean] = {
 
-    try {
+    Try {
 
       // validate the cert path (not so functional ;-)
       validateCertPath(signedData, trustAnchorCert)
@@ -156,12 +156,9 @@ object Validator {
       val verifier = new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(signerCert)
 
       // return true if the signature is valid
-      Try(signerInfo.verify(verifier))
+      signerInfo.verify(verifier)
 
-    } catch {
-      case NonFatal(t) => Failure(t)
     }
-
   }
 
 
