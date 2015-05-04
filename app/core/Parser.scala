@@ -171,9 +171,13 @@ object Parser {
         }
       }
 
-      // filter the raw entries, get only the purchases, parse them and
-      // return them as a list of maps
-      purchases <- Try(rawEntries.filter(isPurchase).map(parsePurchase).toList)
+      // get the purchases from the raw entries...
+      purchases <- Try {
+
+        // ...by filtering only the purchases, parsing them and
+        // return them as a list of maps
+        rawEntries.filter(isPurchase).map(parsePurchase).toList
+      }
 
     } yield purchases
 
