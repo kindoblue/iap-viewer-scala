@@ -9,15 +9,18 @@ import org.bouncycastle.asn1._
 import org.bouncycastle.asn1.cms.ContentInfo
 import org.bouncycastle.cms.CMSSignedData
 
-
-import scala.util.{Failure, Try}
-import scala.util.control.NonFatal
+import scala.util.Try
 
 // see http://stackoverflow.com/questions/8301947/what-is-the-difference-between-javaconverters-and-javaconversions-in-scala
 import scala.collection.JavaConverters._
 
 /**
  * Created by Stefano on 14/02/15.
+ *
+ * The entry point is parsePurchasesFromURL, the only public method here.
+ * This uses the monadic Try for error handling, all the rest the usual java
+ * exceptions.
+ *
  */
 
 object Parser {
@@ -122,7 +125,10 @@ object Parser {
     }
   }
 
+
+
   /**
+   *
    * The entry point of the receipt parser. It gets an url to the receipt and
    * return a list of maps, one map for every purchase.
    *
@@ -142,30 +148,33 @@ object Parser {
    */
   def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[_ <: String, Any]]]= {
 
-    try {
+    // get the raw entries iterator, then filter and parse the purchases.
+    // error handling with monadic approach (Try and for comprehension)
 
-      // open the receipt stream using the loan pattern
-      // get the signed data and then the content iterator
-      val rawEntries = using(receiptUrl.openStream()) {
+    for {
 
-        stream => {
+      rawEntries <- Try {
 
-          // get the signed data
-          val signedData = getSignedData(stream)
+        // open the receipt stream using the loan pattern
+        // get the signed data and then the content iterator
+        using(receiptUrl.openStream()) {
 
-          // return the content iterator
-          getContentIterator(signedData)
+          stream => {
+
+            // get the signed data
+            val signedData = getSignedData(stream)
+
+            // return the content iterator
+            getContentIterator(signedData)
+          }
         }
-
       }
 
       // filter the raw entries, get only the purchases, parse them and
       // return them as a list of maps
-      Try(rawEntries.filter(isPurchase).map(parsePurchase).toList)
+      purchases <- Try(rawEntries.filter(isPurchase).map(parsePurchase).toList)
 
-    } catch {
-      case NonFatal(t) => Failure(t)
-    }
+    } yield purchases
 
 
   } // end of parsePurchasesFromURL
