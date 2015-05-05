@@ -157,12 +157,10 @@ object Parser {
     for {
 
       // get the raw entries as iterator
-      signedData <- Try {
+      signedData <- Try { using(receiptUrl.openStream()) {
 
-        // open the receipt stream using the loan pattern
-        // get the signed data and then the content iterator
-        using(receiptUrl.openStream()) {
-
+          // open the receipt stream using the loan pattern
+          // get the signed data and then the content iterator
           stream => {
 
             // get the signed data
