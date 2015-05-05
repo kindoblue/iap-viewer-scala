@@ -23,21 +23,6 @@ import scala.collection.JavaConverters._
 object Validator {
 
 
-  /**
-   * Read from resources the Apple CA certificate, to validate the receipts.
-   *
-   */
-  private def appleCACertificate() : java.security.cert.Certificate = {
-
-    // get the url of the certificate
-    val url = this.getClass.getResource("/AppleIncRootCertificate.crt")
-
-    // using loan pattern, generate the certificate object from the
-    // file stream
-    using(url.openStream()) {
-      CertificateFactory.getInstance("X.509", "BC").generateCertificate(_)
-    }
-  }
 
   /**
    * Returns the pkix parameters based on the input certificate as trust anchor,
@@ -131,13 +116,35 @@ object Validator {
   }
 
 
+
+
+  /**
+   * Read from resources the Apple CA certificate
+   *
+   */
+  def appleCACertificate() : Try[X509Certificate] = {
+
+    Try {
+      // get the url of the certificate
+      val url = this.getClass.getResource("/AppleIncRootCertificate.crt")
+
+      // using loan pattern, generate the certificate object from the
+      // file stream
+      val a =  using(url.openStream()) {
+        CertificateFactory.getInstance("X.509", "BC").generateCertificate(_)
+      }
+
+      a.asInstanceOf[X509Certificate]
+    }
+  }
+
   /**
    * Check the signature. It validates the certification path using the input trust anchor and
    * then the embedded signature embedded in the envelope.
    *
    * @param signedData signed data containing the message and signature (envelope)
    * @param trustAnchorCert the trust anchor to validate the certification path
-   * @return Try(true) if the signature is valid
+   * @return Try(true) if the signature is valid or Failure
    */
   def isValidSignature(signedData: CMSSignedData, trustAnchorCert: X509Certificate) : Try[Boolean] = {
 

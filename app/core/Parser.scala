@@ -1,5 +1,7 @@
 package core
 
+import java.security.Security
+
 import Common.using
 
 import java.io.InputStream
@@ -8,6 +10,7 @@ import java.net.URL
 import org.bouncycastle.asn1._
 import org.bouncycastle.asn1.cms.ContentInfo
 import org.bouncycastle.cms.CMSSignedData
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 import scala.util.Try
 
@@ -154,7 +157,7 @@ object Parser {
     for {
 
       // get the raw entries as iterator
-      rawEntries <- Try {
+      signedData <- Try {
 
         // open the receipt stream using the loan pattern
         // get the signed data and then the content iterator
@@ -163,25 +166,36 @@ object Parser {
           stream => {
 
             // get the signed data
-            val signedData = getSignedData(stream)
+            getSignedData(stream)
 
-            // return the content iterator
-            getContentIterator(signedData)
           }
         }
       }
 
-      // get the purchases from the raw entries...
+      // get the apple certificate, to be used as trustAnchor
+      trustAnchor <- Validator.appleCACertificate()
+
+      // validate the receipt
+      isValid <- Validator.isValidSignature(signedData, trustAnchor)
+
+      // get the purchases
       purchases <- Try {
 
-        // ...by filtering only the purchases, parsing them and
+        // get the content iterator
+        val content = getContentIterator(signedData)
+
+        // and filter only the purchases, then parse and
         // return them as a list of maps
-        rawEntries.filter(isPurchase).map(parsePurchase).toList
+        content.filter(isPurchase).map(parsePurchase).toList
       }
 
     } yield purchases
 
 
   } // end of parsePurchasesFromURL
+
+
+  // register the Bouncy Castle provider
+  Security.addProvider(new BouncyCastleProvider)
 
 }
