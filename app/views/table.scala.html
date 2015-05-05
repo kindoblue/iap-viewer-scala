@@ -3,36 +3,35 @@
 
 @(purchases: Try[List[Map[String, Any]]])
 
-<div class="row">
 
-    @if(purchases.isFailure) {
-        <div class="bs-callout bs-callout-warning" >
-           <h4>Error while parsing the receipt</h4>
-           <p>@purchases.failed.get</p>
-        </div>
-    } else {
-        <table class="table table-striped sortable" id="results-table" style="margin-top:20pt">
-            <thead>
-            <tr>
-                <th>Transaction ID</th>
-                <th>Product ID</th>
-                <th>Purchase Date</th>
-                <th>Original Purchase Date</th>
-                <th>Quantity</th>
-            </tr>
-            </thead>
+@if(purchases.isFailure) {
+    <div class="bs-callout bs-callout-warning" >
+        <h4>Error while parsing the receipt</h4>
+        <p>@purchases.failed.get</p>
+    </div>
+} else {
+    <table class="table table-striped sortable" id="results-table" style="margin-top:20pt">
+        <thead>
+        <tr>
+            <th>Transaction ID</th>
+            <th>Product ID</th>
+            <th>Purchase Date</th>
+            <th>Original Purchase Date</th>
+            <th>Quantity</th>
+        </tr>
+        </thead>
 
-            <tbody>
-            @for(p <- purchases.get) {
-                <tr>
-                    <td>@p("transaction-id")</td>
-                    <td>@p("product-id")</td>
-                    <td>@p("purchase-date")</td>
-                    <td>@p("org-purchase-date")</td>
-                    <td>@p("quantity")</td>
-                </tr>
-            }
-            </tbody>
-        </table>
-    }
-</div>
+        <tbody>
+        @for(p <- purchases.get) {
+        <tr>
+            <td>@p("transaction-id")</td>
+            <td>@p("product-id")</td>
+            <td>@p("purchase-date")</td>
+            <td>@p("org-purchase-date")</td>
+            <td>@p("quantity")</td>
+        </tr>
+        }
+        </tbody>
+    </table>
+}
+
