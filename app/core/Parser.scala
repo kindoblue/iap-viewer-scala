@@ -42,7 +42,7 @@ object Parser {
    * @param field the DLSequence representing a purchase field
    * @return a Map representing the parsed input field
    */
-  private def parsePurchaseField(field: DLSequence) = {
+  private def parsePurchaseField(field: DLSequence) : Map[String, Any] = {
 
     // get the field type as a plain integer
     val fieldType = field.getObjectAt(0) match {
@@ -74,7 +74,7 @@ object Parser {
       case 1706 => Map("org-purchase-date" -> f)
       case 1708 => Map("subscription-exp-date" -> f)
       case 1712 => Map("cancellation-date" -> f)
-      case _ => Map()
+      case a: Int => Map(a.toString -> f)
     }
   }
 
@@ -91,7 +91,7 @@ object Parser {
    * @param purchase the DLSequence representing the purchase
    * @return a Map containing all the fields of the input purchase record
    */
-  private def parsePurchase(purchase: DLSequence) : Map[_ <: String, Any]  = {
+  private def parsePurchase(purchase: DLSequence) : Map[String, Any]  = {
 
     // get the asn1 representation of the purchase record
     val fieldSet : ASN1Set = purchase.getObjectAt(2) match  {
@@ -196,7 +196,7 @@ object Parser {
    * @param receiptUrl the url of the receipt
    * @return the List of purchases or Failure
    */
-  def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[_ <: String, Any]]]= {
+  def parsePurchasesFromURL(receiptUrl: URL) : Try[List[Map[String, Any]]]= {
 
 
     // error handling with monadic approach (Try and for comprehension)

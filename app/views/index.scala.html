@@ -1,7 +1,7 @@
 @import scala.util.{Failure, Try}
 @import helper._
 
-@(purchases: Try[List[Map[_ <: String, Any]]])
+@(purchases: Try[List[Map[String, Any]]])
 
 @main("Apple In-App Purchases dumper/verifier") {
 
@@ -28,8 +28,7 @@
            </div>
        </div>
 
-       @purchases
-
+       @table(purchases)
 
    </div>
 
