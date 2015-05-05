@@ -42,5 +42,5 @@ cp bower_components/bootstrap-sortable/Scripts/bootstrap-sortable.js ./public/ja
 cp bower_components/moment/min/moment.min.js ./public/javascripts
 
 log "INFO" "Installing jquery"
-cp bower_components/jquery/dist/jquery.min.js ./public/javascripts
-cp bower_components/jquery/dist/jquery.min.map ./public/javascripts
+cp bower_components/jquery/jquery.min.js ./public/javascripts
+cp bower_components/jquery/jquery.min.map ./public/javascripts
