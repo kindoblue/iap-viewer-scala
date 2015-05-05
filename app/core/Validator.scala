@@ -8,8 +8,7 @@ import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder
 import org.bouncycastle.cms.{SignerInformation, CMSSignedData}
 
-import scala.util.{Failure, Try}
-import scala.util.control.NonFatal
+import scala.util.Try
 
 import scala.collection.JavaConverters._
 

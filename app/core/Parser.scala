@@ -156,25 +156,14 @@ object Parser {
 
     for {
 
-      // get the raw entries as iterator
-      signedData <- Try { using(receiptUrl.openStream()) {
-
-          // open the receipt stream using the loan pattern
-          // get the signed data and then the content iterator
-          stream => {
-
-            // get the signed data
-            getSignedData(stream)
-
-          }
-        }
-      }
+      // get the signed data, using loan pattern and wrapping with a Try
+      signedData <- Try { using(receiptUrl.openStream()) { getSignedData(_) }}
 
       // get the apple certificate, to be used as trustAnchor
       trustAnchor <- Validator.appleCACertificate()
 
       // validate the receipt
-      isValid <- Validator.isValidSignature(signedData, trustAnchor)
+      validity <- Validator.isValidSignature(signedData, trustAnchor)
 
       // get the purchases
       purchases <- Try {
